@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import datetime
-
+from keep_alive import keep_alive
 # -----------------------------
 # LOAD CONFIG
 # -----------------------------
