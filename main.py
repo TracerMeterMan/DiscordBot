@@ -269,5 +269,6 @@ async def on_command_error(ctx, error):
 # -----------------------------
 # RUN BOT
 # -----------------------------
-bot.run(TOKEN)
 keep_alive()
+bot.run(TOKEN)
+
