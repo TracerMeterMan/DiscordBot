@@ -15,49 +15,23 @@ FEEDBACK_CHANNEL_ID = int(os.getenv("FEEDBACK_CHANNEL_ID"))
 WRITING_SHOWCASE_CHANNEL_ID = int(os.getenv("WRITING_SHOWCASE_CHANNEL_ID"))
 BOT_COMMANDS_ID = int(os.getenv("BOT_COMMANDS_ID"))
 
-# -----------------------------
-# SET UP BOT
-# -----------------------------
+#initialize bot
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Needed for auto role assignment
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Track last booking requests for 1-per-day restriction
 last_booking_requests = {}
 
-# -----------------------------
-# HELPER: CHECK ALLOWED CHANNEL
-# -----------------------------
+#make dms only or bot commands channel only
 def is_allowed_channel(ctx):
     return isinstance(ctx.channel, discord.DMChannel) or (ctx.guild and ctx.channel.id == BOT_COMMANDS_ID)
 
-# -----------------------------
-# EVENT: ON READY
-# -----------------------------
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
 
-# -----------------------------
-# EVENT: AUTO ASSIGN MEMBER ROLE
-# -----------------------------
-@bot.event
-async def on_member_join(member):
-    guild = member.guild
-    role = discord.utils.get(guild.roles, name="Member")  # Hardcoded role name
-    if role:
-        try:
-            await member.add_roles(role)
-            print(f"✅ Assigned {role.name} role to {member.name}")
-        except Exception as e:
-            print(f"⚠️ Could not assign role: {e}")
-    else:
-        print("⚠️ 'Member' role not found in this server.")
-
-# -----------------------------
-# COMMAND: REQUEST BOOKING
-# -----------------------------
+# request booking cmd
 @bot.command(name="requestbooking")
 async def request_booking(ctx):
     if not is_allowed_channel(ctx):
@@ -69,14 +43,14 @@ async def request_booking(ctx):
     if user.id in last_booking_requests:
         delta = now - last_booking_requests[user.id]
         if delta.total_seconds() < 86400:
-            await ctx.send("⏳ You can only make one booking request per day.")
+            await ctx.send("You can only make one booking request per day.")
             return
 
     last_booking_requests[user.id] = now
     valid_types = ["CRT", "PRT", "Creative", "Other"]
 
     while True:
-        await ctx.send("📚 What type of booking? Reply with CRT, PRT, Creative, or Other.")
+        await ctx.send("What type of booking? Reply with CRT, PRT, Creative, or Other.")
         try:
             msg_type = await bot.wait_for(
                 "message",
@@ -92,7 +66,7 @@ async def request_booking(ctx):
         await ctx.send("⚠️ Please enter a valid booking type: CRT, PRT, Creative, or Other.")
 
     while True:
-        await ctx.send("💬 Any additional comments? (max 20 words, or type 'none')")
+        await ctx.send("💬 Explain your booking in less than 50 words. We will provide you with a quote in 24 hours.")
         try:
             msg_comments = await bot.wait_for(
                 "message",
@@ -105,11 +79,8 @@ async def request_booking(ctx):
             return
 
         comments = msg_comments.content.strip()
-        if comments.lower() == "none":
-            comments = "No additional comments."
-            break
-        elif len(comments.split()) > 20:
-            await ctx.send("⚠️ Too long! Please limit to 20 words and try again.")
+        if len(comments.split()) > 50:
+            await ctx.send("⚠️ Too long! Please limit to 50 words and try again.")
             continue
         else:
             break
@@ -119,9 +90,10 @@ async def request_booking(ctx):
         f"📩 **Booking Request**\n"
         f"👤 From: {user.name}#{user.discriminator}\n"
         f"📘 Type: {msg_type.content.strip()}\n"
-        f"💬 Comments: {comments}"
+        f"💬 Booking Details: {comments}"
     )
-    await ctx.send("✅ Your booking request has been sent!")
+    await ctx.send("✅ Your booking request has been sent! You’ll receive a quote within 24 hours.")
+
 
 # -----------------------------
 # COMMAND: FEEDBACK
