@@ -4,6 +4,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import datetime
 from keep_alive import keep_alive
+
 # -----------------------------
 # LOAD CONFIG
 # -----------------------------
@@ -19,6 +20,7 @@ BOT_COMMANDS_ID = int(os.getenv("BOT_COMMANDS_ID"))
 # -----------------------------
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True  # Needed for auto role assignment
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Track last booking requests for 1-per-day restriction
@@ -38,30 +40,20 @@ async def on_ready():
     print(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
 
 # -----------------------------
-# COMMAND: SEND PRT RESOURCES
+# EVENT: AUTO ASSIGN MEMBER ROLE
 # -----------------------------
-@bot.command(name="sendprtresources")
-async def send_prt_resources(ctx):
-    if not is_allowed_channel(ctx):
-        return
-    await ctx.author.send(
-        "📘 **PRT Resources:**\n1. Resource A\n2. Resource B\n3. Resource C"
-    )
-    if ctx.guild:
-        await ctx.send("✅ PRT resources sent to your DMs!")
-
-# -----------------------------
-# COMMAND: SEND CRT RESOURCES
-# -----------------------------
-@bot.command(name="sendcrtresources")
-async def send_crt_resources(ctx):
-    if not is_allowed_channel(ctx):
-        return
-    await ctx.author.send(
-        "📗 **CRT Resources:**\n1. Resource X\n2. Resource Y\n3. Resource Z"
-    )
-    if ctx.guild:
-        await ctx.send("✅ CRT resources sent to your DMs!")
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+    role = discord.utils.get(guild.roles, name="Member")  # Hardcoded role name
+    if role:
+        try:
+            await member.add_roles(role)
+            print(f"✅ Assigned {role.name} role to {member.name}")
+        except Exception as e:
+            print(f"⚠️ Could not assign role: {e}")
+    else:
+        print("⚠️ 'Member' role not found in this server.")
 
 # -----------------------------
 # COMMAND: REQUEST BOOKING
@@ -153,7 +145,7 @@ async def feedback(ctx, *, message: str):
     embed = discord.Embed(
         title="📩 New Feedback",
         description=message,
-        color=discord.Color.blue()  # <-- note the parentheses
+        color=discord.Color.blue()
     )
     embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
     await feedback_channel.send(embed=embed)
@@ -181,12 +173,10 @@ async def anonymousfeedback(ctx, *, message: str):
     embed = discord.Embed(
         title="📩 Anonymous Feedback",
         description=message,
-        color=discord.Color.purple()  # <-- note the parentheses
+        color=discord.Color.purple()
     )
     await feedback_channel.send(embed=embed)
     await ctx.send("✅ Your anonymous feedback has been sent!")
-
-
 
 # -----------------------------
 # COMMAND: SHOWCASE
@@ -271,4 +261,3 @@ async def on_command_error(ctx, error):
 # -----------------------------
 keep_alive()
 bot.run(TOKEN)
-
