@@ -208,6 +208,9 @@ async def showcase(ctx):
         auto_archive_duration=1440
     )
     await ctx.send(f"Your writing has been posted in {channel.mention} and a review thread was created!")
+@bot.command()
+async def ping(ctx):
+    await ctx.send("Pong!")
 
 # -----------------------------
 # Start keep-alive and bot
