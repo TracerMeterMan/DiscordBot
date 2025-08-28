@@ -3,17 +3,17 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import datetime
-from keep_alive import keep_alive  # separate file for Flask
+from keep_alive import keep_alive
 
 # -----------------------------
 # Load environment variables
 # -----------------------------
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID"))
-FEEDBACK_CHANNEL_ID = int(os.getenv("FEEDBACK_CHANNEL_ID"))
-WRITING_SHOWCASE_CHANNEL_ID = int(os.getenv("WRITING_SHOWCASE_CHANNEL_ID"))
-BOT_COMMANDS_ID = int(os.getenv("BOT_COMMANDS_ID"))
+OWNER_ID = int(os.getenv("OWNER_ID", "0"))
+FEEDBACK_CHANNEL_ID = int(os.getenv("FEEDBACK_CHANNEL_ID", "0"))
+WRITING_SHOWCASE_CHANNEL_ID = int(os.getenv("WRITING_SHOWCASE_CHANNEL_ID", "0"))
+BOT_COMMANDS_ID = int(os.getenv("BOT_COMMANDS_ID", "0"))
 
 # -----------------------------
 # Initialize bot
@@ -96,7 +96,7 @@ async def request_booking(ctx):
 
 # Feedback command
 @bot.command()
-@commands.cooldown(1, 900, commands.BucketType.user)  # 1 use per 15 min per user
+@commands.cooldown(1, 900, commands.BucketType.user)
 async def feedback(ctx, *, message: str):
     if not is_allowed_channel(ctx):
         return
@@ -146,71 +146,3 @@ async def anonymousfeedback(ctx, *, message: str):
 # Writing showcase command
 @bot.command(name="showcase")
 async def showcase(ctx):
-    if not is_allowed_channel(ctx):
-        return
-
-    user = ctx.author
-    channel = bot.get_channel(WRITING_SHOWCASE_CHANNEL_ID)
-    if not channel:
-        await ctx.send("Showcase channel not found.")
-        return
-
-    await ctx.send("Enter your **pen name**:")
-    try:
-        pen_name_msg = await bot.wait_for(
-            "message",
-            check=lambda m: m.author == user and m.channel == ctx.channel,
-            timeout=120
-        )
-    except:
-        await ctx.send("⌛ Showcase timed out. Please try again.")
-        return
-    pen_name = pen_name_msg.content.strip()
-    if not pen_name:
-        await ctx.send("Pen name cannot be empty.")
-        return
-
-    await ctx.send("📖 Enter the **title** of your writing:")
-    try:
-        title_msg = await bot.wait_for(
-            "message",
-            check=lambda m: m.author == user and m.channel == ctx.channel,
-            timeout=120
-        )
-    except:
-        await ctx.send("⌛ Showcase timed out. Please try again.")
-        return
-    title = title_msg.content.strip()
-    if not title:
-        await ctx.send("Title cannot be empty.")
-        return
-
-    await ctx.send("Enter your **writing** (up to 2000 words):")
-    try:
-        writing_msg = await bot.wait_for(
-            "message",
-            check=lambda m: m.author == user and m.channel == ctx.channel,
-            timeout=600
-        )
-    except:
-        await ctx.send("Showcase timed out. Please try again.")
-        return
-    writing_content = writing_msg.content.strip()
-    if len(writing_content.split()) > 2000:
-        await ctx.send("Too long! Please limit to 2000 words.")
-        return
-
-    showcase_post = await channel.send(
-        f"**{title}** by *{pen_name}*\n\n{writing_content}"
-    )
-    await showcase_post.create_thread(
-        name=f"Feedback for {title} by {pen_name}",
-        auto_archive_duration=1440
-    )
-    await ctx.send(f"Your writing has been posted in {channel.mention} and a review thread was created!")
-
-# -----------------------------
-# Run bot with keep-alive
-# -----------------------------
-keep_alive()   # start Flask server for uptime monitoring
-bot.run(TOKEN)
