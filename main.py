@@ -146,3 +146,72 @@ async def anonymousfeedback(ctx, *, message: str):
 # Writing showcase command
 @bot.command(name="showcase")
 async def showcase(ctx):
+    if not is_allowed_channel(ctx):
+        return
+
+    user = ctx.author
+    channel = bot.get_channel(WRITING_SHOWCASE_CHANNEL_ID)
+    if not channel:
+        await ctx.send("Showcase channel not found.")
+        return
+
+    await ctx.send("Enter your **pen name**:")
+    try:
+        pen_name_msg = await bot.wait_for(
+            "message",
+            check=lambda m: m.author == user and m.channel == ctx.channel,
+            timeout=120
+        )
+    except:
+        await ctx.send("⌛ Showcase timed out. Please try again.")
+        return
+    pen_name = pen_name_msg.content.strip()
+    if not pen_name:
+        await ctx.send("Pen name cannot be empty.")
+        return
+
+    await ctx.send("📖 Enter the **title** of your writing:")
+    try:
+        title_msg = await bot.wait_for(
+            "message",
+            check=lambda m: m.author == user and m.channel == ctx.channel,
+            timeout=120
+        )
+    except:
+        await ctx.send("⌛ Showcase timed out. Please try again.")
+        return
+    title = title_msg.content.strip()
+    if not title:
+        await ctx.send("Title cannot be empty.")
+        return
+
+    await ctx.send("Enter your **writing** (up to 2000 words):")
+    try:
+        writing_msg = await bot.wait_for(
+            "message",
+            check=lambda m: m.author == user and m.channel == ctx.channel,
+            timeout=600
+        )
+    except:
+        await ctx.send("Showcase timed out. Please try again.")
+        return
+    writing_content = writing_msg.content.strip()
+    if len(writing_content.split()) > 2000:
+        await ctx.send("Too long! Please limit to 2000 words.")
+        return
+
+    showcase_post = await channel.send(
+        f"**{title}** by *{pen_name}*\n\n{writing_content}"
+    )
+    await showcase_post.create_thread(
+        name=f"Feedback for {title} by {pen_name}",
+        auto_archive_duration=1440
+    )
+    await ctx.send(f"Your writing has been posted in {channel.mention} and a review thread was created!")
+
+# -----------------------------
+# Start keep-alive and bot
+# -----------------------------
+if __name__ == "__main__":
+    keep_alive()  # starts Flask in a thread
+    bot.run(TOKEN)
