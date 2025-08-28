@@ -3,9 +3,11 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import datetime
-from keep_alive import keep_alive
+from keep_alive import keep_alive  # separate file for Flask
 
-#initialize bot
+# -----------------------------
+# Load environment variables
+# -----------------------------
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 OWNER_ID = int(os.getenv("OWNER_ID"))
@@ -13,7 +15,9 @@ FEEDBACK_CHANNEL_ID = int(os.getenv("FEEDBACK_CHANNEL_ID"))
 WRITING_SHOWCASE_CHANNEL_ID = int(os.getenv("WRITING_SHOWCASE_CHANNEL_ID"))
 BOT_COMMANDS_ID = int(os.getenv("BOT_COMMANDS_ID"))
 
-#give bot some perms
+# -----------------------------
+# Initialize bot
+# -----------------------------
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -21,15 +25,31 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Track last booking requests for 1-per-day restriction
 last_booking_requests = {}
 
-#make dms only or bot commands channel only
+# -----------------------------
+# Helper: restrict commands to DMs or bot-commands channel
+# -----------------------------
 def is_allowed_channel(ctx):
     return isinstance(ctx.channel, discord.DMChannel) or (ctx.guild and ctx.channel.id == BOT_COMMANDS_ID)
 
+# -----------------------------
+# Events
+# -----------------------------
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user} (ID: {bot.user.id})")
 
-# request booking cmd
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"You can use this command again in {round(error.retry_after / 60, 1)} minutes.")
+    else:
+        raise error
+
+# -----------------------------
+# Commands
+# -----------------------------
+
+# Request booking
 @bot.command(name="requestbooking")
 async def request_booking(ctx):
     if not is_allowed_channel(ctx):
@@ -74,15 +94,13 @@ async def request_booking(ctx):
     )
     await ctx.send("Your booking request has been sent! You’ll receive a quote within 24 hours.")
 
-
-#feedback cmd
+# Feedback command
 @bot.command()
 @commands.cooldown(1, 900, commands.BucketType.user)  # 1 use per 15 min per user
 async def feedback(ctx, *, message: str):
     if not is_allowed_channel(ctx):
         return
 
-    # Word limit
     if len(message.split()) > 50:
         await ctx.send("Too long! Please limit to 50 words.")
         return
@@ -101,14 +119,13 @@ async def feedback(ctx, *, message: str):
     await feedback_channel.send(embed=embed)
     await ctx.send("Your feedback has been sent!")
 
-#anonymous feedback
+# Anonymous feedback command
 @bot.command()
-@commands.cooldown(1, 900, commands.BucketType.user)  # 1 use per 15 min per user
+@commands.cooldown(1, 900, commands.BucketType.user)
 async def anonymousfeedback(ctx, *, message: str):
     if not is_allowed_channel(ctx):
         return
 
-    # Word limit
     if len(message.split()) > 50:
         await ctx.send("Too long! Please limit to 50 words.")
         return
@@ -126,9 +143,7 @@ async def anonymousfeedback(ctx, *, message: str):
     await feedback_channel.send(embed=embed)
     await ctx.send("Your anonymous feedback has been sent!")
 
-# -----------------------------
-# COMMAND: SHOWCASE
-# -----------------------------
+# Writing showcase command
 @bot.command(name="showcase")
 async def showcase(ctx):
     if not is_allowed_channel(ctx):
@@ -194,12 +209,8 @@ async def showcase(ctx):
     )
     await ctx.send(f"Your writing has been posted in {channel.mention} and a review thread was created!")
 
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f"You can use this command again in {round(error.retry_after / 60, 1)} minutes.")
-    else:
-        raise error
-
-keep_alive()
+# -----------------------------
+# Run bot with keep-alive
+# -----------------------------
+keep_alive()   # start Flask server for uptime monitoring
 bot.run(TOKEN)
